@@ -5,7 +5,7 @@ var lastDrawnWidth = imageWidth;
 var lastDrawnHeight = 170;
 var pieceDictionary = {};
 var drawThreads = 1;
-var drawLoopDelay = 75;
+var drawLoopDelay = 25;
 var drawList = [];
 var imageThreads = [];
 var drawingProcessing = false;
@@ -16,6 +16,25 @@ const ctx = canv.getContext("2d");
 console.log("Maximum square width: " +imageWidth+ "px")
 console.log(window.innerWidth)
 //console.log(board);
+
+function postBoard(gameName){
+    // $.post( "/data/game/board", JSON.stringify({board: board, game_Name: gameName}), function(data) {
+    //     console.log(data)
+    // }).done(function(data){
+    //     console.log(data)
+    // });
+
+    $.ajax({
+        type: 'post',
+        url: '/data/games/board',
+        data: JSON.stringify({board: board, game_Name: gameName}),
+        contentType: "application/json; charset=utf-8",
+        traditional: true,
+        success: function (data) {
+            console.log(data)
+        }
+    });
+}
 
 function initializeBoard(){
     board = [
@@ -45,6 +64,7 @@ function initializeBoard(){
     //     [1,0,2,1,2,0,0],
     // ];
 }
+
 function compareBoard(otherboard){
     let xyChangeList = [];
     for (let rowInd = 0; rowInd < board.length; rowInd++) {
@@ -138,6 +158,7 @@ function getRelativePosisionEvent(element) {
         turn = turn+1;
         drawBoardPosition(xIndex,rowDrawIndex);
         console.log("row turn:" +turn);
+        postBoard("NoName");
         
     });
 }

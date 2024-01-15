@@ -100,6 +100,9 @@ $.getJSON('/data/theme-'+theme+'/black', function (data) {
     setTimeout(() => {
         console.log("pieces loaded");
         console.log(pieceDictionary);
+        $.getJSON('/data/games/board', function (data) {
+            console.log(data);    
+        })
         initializeBoard();
         drawBoard();
 
