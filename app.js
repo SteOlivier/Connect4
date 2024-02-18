@@ -67,11 +67,13 @@ app.post('/data/games/board', function(req, res) {
     //console.log('receiving data ...');
     //console.log('body is ',req.body);
     console.log('body is ',req.headers.referer);
+    var urlParams = getUrlAndParameters(req.headers.referer);
+    
     const fs = require('fs');
-    console.log(__dirname +'\\games\\'+req.body.game_Name + '\\board.json');
-    fs.promises.mkdir(__dirname +'\\games\\'+req.body.game_Name.toLowerCase(), { recursive: true })
+    console.log(__dirname +'\\games\\'+urlParams.gameId + '\\board.json');
+    fs.promises.mkdir(__dirname +'\\games\\'+urlParams.gameId.toLowerCase(), { recursive: true })
     .then(
-        fs.writeFileSync(__dirname +'\\games\\'+req.body.game_Name + '\\board.json',JSON.stringify(req.body.board) )
+        fs.writeFileSync(__dirname +'\\games\\'+urlParams.gameId + '\\board.json',JSON.stringify(req.body.board) )
     )
     .catch(console.error);
     
@@ -99,3 +101,100 @@ app.listen(3000, () => {
     console.log('App is running on port 3000')
 })
 
+
+const urlPartsDefinition = {
+    TEXT: "text",
+    PARAMETER: "parameter"
+}
+class UrlParts
+{
+    stringArray = [];
+    // uses urlPartsDefinition to define what each tipe in the stringArray is
+    itemDefArray = [];
+    constructor(urlTemplate){
+        let sections = urlTemplate.split("/");
+        
+        sections.forEach(uriText => {
+            let parameters = uriText.split(":")
+            this.stringArray.push(parameters[0]);
+            this.itemDefArray.push(urlPartsDefinition.TEXT);
+            if (parameters.length === 2)
+            {
+                this.stringArray.push(parameters[1]);
+                this.itemDefArray.push(urlPartsDefinition.PARAMETER);
+            } 
+        });
+    }
+
+    isSameUrl(url) {
+        let isSame = true;
+        let lastIndexMatched = 0;
+        for (let index = 0; index < this.stringArray.length; index++) {
+            const textOrParameter = this.stringArray[index];
+            const partDefinition = this.itemDefArray[index];
+            if (partDefinition === urlPartsDefinition.PARAMETER) continue;
+            let urlMatchInd = url.indexOf("/"+textOrParameter,lastIndexMatched);
+            if (urlMatchInd === -1) {
+                isSame = false;
+                break;
+            }
+            lastIndexMatched = urlMatchInd; // move the position of the last matched so that it will match sequencially while ignoring parameters
+        }
+        return isSame;    
+    }
+    getParametersURL(url, checked)
+    {
+        // don't recheck if iaSameUrl already called
+        if (!checked){
+        // if not the same, return a blank version of the class expected
+            if (!this.isSameUrl(url)) {
+                let blankObj = {};
+                for (let index = 0; index < this.itemDefArray.length; index++) {
+                    const textOrParameter = this.stringArray[index];
+                    const partDefinition = this.itemDefArray[index];
+                    if (partDefinition === urlPartsDefinition.TEXT) continue;
+                    blankObj[textOrParameter]= "";
+                }
+                return blankObj;
+            }
+        }
+        let urlObj = {};
+        let lastIndexMatched = 0;
+        for (let index = 0; index < this.stringArray.length; index++) {
+            const textOrParameter = this.stringArray[index];
+            const partDefinition = this.itemDefArray[index];
+            if (partDefinition === urlPartsDefinition.TEXT) {
+                let urlMatchInd = url.indexOf("/"+textOrParameter,lastIndexMatched);
+                if (urlMatchInd === -1) {
+                    isSame = false;
+                    break;
+                }
+                lastIndexMatched = urlMatchInd+textOrParameter.length; // move the position of the last matched so that it will match sequencially while ignoring parameters
+            } else {
+                let slashMatchInd = url.indexOf("/", lastIndexMatched+1); // end of url parameter
+                if (slashMatchInd === -1){ //remaining part of url is the match
+                    urlObj[textOrParameter] = url.slice(lastIndexMatched+1);
+                    break; // should be the end, if not, well end it anyway (for safety)
+                } else {
+                    urlObj[textOrParameter] = url.slice(lastIndexMatched+1,slashMatchInd);
+                }
+                lastIndexMatched = slashMatchInd;
+            }
+        }
+        return urlObj;
+    }
+}
+
+var allGetCommands = ['/data/games/board','/data/theme-:theme/:piece','/hg-:gameId','/'];
+var allGetParts = [new UrlParts(allGetCommands[0]),new UrlParts(allGetCommands[1]),new UrlParts(allGetCommands[2])];
+
+function getUrlAndParameters(urlString){
+    for (let index = 0; index < allGetParts.length; index++) {
+        const urlPart = allGetParts[index];
+        if (urlPart.isSameUrl(urlString))
+        {
+            return urlPart.getParametersURL(urlString,true);
+        }
+    }
+    return null;
+}
